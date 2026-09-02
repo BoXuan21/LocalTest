@@ -1,0 +1,51 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-resources-and-labels
+  annotations:
+    policies.kyverno.io/title: Require Resource Requests/Limits and Labels
+    policies.kyverno.io/category: Best Practices
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/description: >-
+      Every container must declare cpu/memory requests and limits, and every
+      Pod-creating workload must carry an 'app' label. Enforced (blocking),
+      scoped to the demo-stack namespace so it doesn't interfere with
+      system/monitoring components.
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: require-requests-limits
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces:
+                - demo-stack
+      validate:
+        message: "Every container must set resources.requests and resources.limits for cpu and memory."
+        foreach:
+          - list: "request.object.spec.containers"
+            pattern:
+              resources:
+                requests:
+                  cpu: "?*"
+                  memory: "?*"
+                limits:
+                  cpu: "?*"
+                  memory: "?*"
+    - name: require-app-label
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces:
+                - demo-stack
+      validate:
+        message: "Pods must carry an 'app' label for observability/traceability."
+        pattern:
+          metadata:
+            labels:
+              app: "?*"

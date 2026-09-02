@@ -1,0 +1,35 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: self-healing-operator-alerts
+  namespace: demo-stack
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: self-healing-operator
+      rules:
+        - alert: OperatorTargetDown
+          expr: up{job=~".*operator.*"} == 0
+          for: 1m
+          labels:
+            severity: warning
+          annotations:
+            summary: "self-healing-operator target is down"
+            description: "Prometheus has not been able to scrape {{ $labels.instance }} for over 1 minute."
+        - alert: OperatorRestarted
+          expr: increase(kube_pod_container_status_restarts_total{pod=~"self-healing-operator.*"}[5m]) > 0
+          labels:
+            severity: info
+          annotations:
+            summary: "self-healing-operator container restarted"
+            description: "Pod {{ $labels.pod }} restarted (expected roughly every 20 minutes)."
+        - alert: OperatorNotReconciling
+          expr: increase(operator_reconcile_total[15m]) == 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "self-healing-operator has not reconciled anything recently"
+            description: "operator_reconcile_total has not increased in the last 15 minutes."
+        

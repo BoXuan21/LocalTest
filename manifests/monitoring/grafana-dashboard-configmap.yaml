@@ -1,0 +1,85 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: operator-dashboard
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  operator-dashboard.json: |
+    {
+      "title": "Self-Healing Operator",
+      "timezone": "browser",
+      "refresh": "10s",
+      "schemaVersion": 39,
+      "panels": [
+        {
+          "id": 1,
+          "type": "timeseries",
+          "title": "Target up (1 = scrape succeeded)",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+          "targets": [
+            { "expr": "up{job=~\".*operator.*\"}", "legendFormat": "{{instance}}" }
+          ]
+        },
+        {
+          "id": 2,
+          "type": "timeseries",
+          "title": "operator_uptime_seconds (resets on self-restart)",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+          "targets": [
+            { "expr": "operator_uptime_seconds", "legendFormat": "{{instance}}" }
+          ]
+        },
+        {
+          "id": 3,
+          "type": "timeseries",
+          "title": "operator_seconds_until_self_restart",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+          "targets": [
+            { "expr": "operator_seconds_until_self_restart", "legendFormat": "{{instance}}" }
+          ]
+        },
+        {
+          "id": 4,
+          "type": "timeseries",
+          "title": "Container restarts",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+          "targets": [
+            {
+              "expr": "kube_pod_container_status_restarts_total{pod=~\"self-healing-operator.*\"}",
+              "legendFormat": "{{pod}}"
+            }
+          ]
+        },
+        {
+          "id": 5,
+          "type": "timeseries",
+          "title": "Kafka message rate by topic",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+          "targets": [
+            { "expr": "sum by (topic) (rate(kafka_server_messagesinpersec_count[1m]))", "legendFormat": "{{topic}}" }
+          ]
+        },
+        {
+          "id": 6,
+          "type": "stat",
+          "title": "Messages received (last 15m)",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+          "targets": [
+            { "expr": "sum by (topic) (increase(kafka_server_messagesinpersec_count[15m]))", "legendFormat": "{{topic}}" }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "red", "value": 0 },
+                  { "color": "green", "value": 1 }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }

@@ -1,0 +1,87 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: metrics-storage-headless
+  namespace: demo-stack
+  labels:
+    app: metrics-storage
+spec:
+  clusterIP: None
+  selector:
+    app: metrics-storage
+  ports:
+    - name: http
+      port: 8428
+      targetPort: 8428
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: metrics-storage
+  namespace: demo-stack
+  labels:
+    app: metrics-storage
+spec:
+  selector:
+    app: metrics-storage
+  ports:
+    - name: http
+      port: 8428
+      targetPort: 8428
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: metrics-storage
+  namespace: demo-stack
+  labels:
+    app: metrics-storage
+spec:
+  serviceName: metrics-storage-headless
+  replicas: 1
+  selector:
+    matchLabels:
+      app: metrics-storage
+  template:
+    metadata:
+      labels:
+        app: metrics-storage
+    spec:
+      containers:
+        - name: victoria-metrics
+          image: victoriametrics/victoria-metrics:v1.102.0
+          args:
+            - "-storageDataPath=/storage"
+            - "-retentionPeriod=7d"
+            - "-httpListenAddr=:8428"
+          ports:
+            - containerPort: 8428
+              name: http
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 250m
+              memory: 512Mi
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8428
+            initialDelaySeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8428
+            initialDelaySeconds: 15
+          volumeMounts:
+            - name: storage
+              mountPath: /storage
+  volumeClaimTemplates:
+    - metadata:
+        name: storage
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 2Gi

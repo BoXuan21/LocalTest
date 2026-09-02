@@ -1,0 +1,79 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: self-healing-operator
+  namespace: demo-stack
+  labels:
+    app: self-healing-operator
+    release: kube-prometheus-stack
+spec:
+  selector:
+    matchLabels:
+      app: self-healing-operator
+  namespaceSelector:
+    matchNames:
+      - demo-stack
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: 15s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: metrics-storage
+  namespace: demo-stack
+  labels:
+    app: metrics-storage
+    release: kube-prometheus-stack
+spec:
+  selector:
+    matchLabels:
+      app: metrics-storage
+  namespaceSelector:
+    matchNames:
+      - demo-stack
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 30s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: kafka-metrics
+  namespace: kafka
+  labels:
+    release: kube-prometheus-stack
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: my-kafka
+      app.kubernetes.io/component: metrics
+  namespaceSelector:
+    matchNames:
+      - kafka
+  endpoints:
+    - port: metrics
+      path: /
+      interval: 15s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: kafka-metrics
+  namespace: kafka
+  labels:
+    release: kube-prometheus-stack
+spec:
+  selector:
+    matchLabels:
+      app: kafka
+  namespaceSelector:
+    matchNames:
+      - kafka
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: 15s
+
