@@ -51,35 +51,6 @@ data:
               "legendFormat": "{{pod}}"
             }
           ]
-        },
-        {
-          "id": 5,
-          "type": "timeseries",
-          "title": "Kafka message rate by topic",
-          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
-          "targets": [
-            { "expr": "sum by (topic) (rate(kafka_server_messagesinpersec_count[1m]))", "legendFormat": "{{topic}}" }
-          ]
-        },
-        {
-          "id": 6,
-          "type": "stat",
-          "title": "Messages received (last 15m)",
-          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
-          "targets": [
-            { "expr": "sum by (topic) (increase(kafka_server_messagesinpersec_count[15m]))", "legendFormat": "{{topic}}" }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  { "color": "red", "value": 0 },
-                  { "color": "green", "value": 1 }
-                ]
-              }
-            }
-          }
         }
       ]
     }

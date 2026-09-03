@@ -11,7 +11,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("self-healing-operator")
 
 START_TIME = time.time()
-SELF_DESTRUCT_SECONDS = int(os.environ.get("SELF_DESTRUCT_SECONDS", "1200"))
+SELF_DESTRUCT_SECONDS = int(os.environ.get("SELF_DESTRUCT_SECONDS", "180"))
 
 RECONCILE_TOTAL = Counter(
     "operator_reconcile_total",

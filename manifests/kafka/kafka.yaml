@@ -99,11 +99,11 @@ spec:
               value: "-javaagent:/agent/jmx_prometheus_javaagent.jar=9404:/etc/jmx-exporter/kafka-jmx-exporter.yml"
           resources:
             requests:
-              cpu: 100m
-              memory: 256Mi
+              cpu: 250m
+              memory: 768Mi
             limits:
-              cpu: 500m
-              memory: 512Mi
+              cpu: 1
+              memory: 1536Mi
           volumeMounts:
             - name: data
               mountPath: /var/lib/kafka/data

@@ -1,0 +1,22 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: recording-rules
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: anomaly-detection.recording-rules
+      rules:
+        - record: scrape:duration:avg1h
+          expr: avg_over_time(scrape_duration_seconds[1h])
+ 
+        - record: scrape:duration:stddev1h
+          expr: stddev_over_time(scrape_duration_seconds[1h])
+ 
+        - record: scrape:duration:zscore
+          expr: |
+            (scrape_duration_seconds - scrape:duration:avg1h)
+            / scrape:duration:stddev1h
+ 

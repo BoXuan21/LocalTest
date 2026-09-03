@@ -1,0 +1,19 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: anomaly-detection-alerts
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: anomaly-detection.alerts
+      rules:
+        - alert: ScrapeDurationAnomaly
+          expr: abs(scrape:duration:zscore) > 3 and scrape:duration:stddev1h > 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Anomalous scrape duration for {{ $labels.job }} (z={{ $value }})"
+            description: "{{ $labels.instance }} (job {{ $labels.job }}) has a scrape_duration_seconds z-score of {{ $value }} over the last hour, outside the expected +/-3 stddev range."
