@@ -28,7 +28,7 @@ data:
           "title": "Kafka message rate by topic",
           "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
           "targets": [
-            { "expr": "sum by (topic) (rate(kafka_server_messagesinpersec_count[1m]))", "legendFormat": "{{topic}}" }
+            { "expr": "sum by (topic) (rate(kafka_server_brokertopicmetrics_count{name=\"MessagesInPerSec\", topic!=\"\"}[1m]))", "legendFormat": "{{topic}}" }
           ]
         },
         {
@@ -37,7 +37,7 @@ data:
           "title": "Messages received (last 15m)",
           "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
           "targets": [
-            { "expr": "sum by (topic) (increase(kafka_server_messagesinpersec_count[15m]))", "legendFormat": "{{topic}}" }
+            { "expr": "sum by (topic) (increase(kafka_server_brokertopicmetrics_count{name=\"MessagesInPerSec\", topic!=\"\"}[15m]))", "legendFormat": "{{topic}}" }
           ],
           "fieldConfig": {
             "defaults": {

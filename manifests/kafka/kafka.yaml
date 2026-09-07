@@ -11,8 +11,6 @@ metadata:
 data:
   kafka-jmx-exporter.yml: |
     lowercaseOutputName: true
-    # No explicit rules: exports every JMX MBean Kafka publishes,
-    # auto-named. Fine for a demo; tighten with an allowlist for prod.
 ---
 apiVersion: v1
 kind: Service
