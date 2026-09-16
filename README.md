@@ -47,7 +47,7 @@ This will:
 | Grafana (`admin`/`admin`) | http://localhost:3000 |
 | Prometheus | http://localhost:9090 |
 | Loki API | http://localhost:3100 |
-| Kafka bootstrap | `localhost:9092` |
+| Kafka bootstrap | http://localhost:9092 |
 | Log Sender UI | http://localhost:5005 |
 
 ## Usage
