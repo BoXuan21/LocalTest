@@ -1,0 +1,147 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: log-sender
+  namespace: demo-stack
+data:
+  server.py: |
+    import json
+    import time
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+    PAGE = b"""<!DOCTYPE html>
+    <html>
+    <head>
+      <title>Log Sender</title>
+      <style>
+        body { font-family: sans-serif; max-width: 480px; margin: 60px auto; }
+        select, input, button { font-size: 1rem; padding: 8px; margin: 6px 0; width: 100%; box-sizing: border-box; }
+        button { cursor: pointer; }
+        #status { margin-top: 12px; color: #555; }
+      </style>
+    </head>
+    <body>
+      <h2>Send a log line</h2>
+      <label>Level</label>
+      <select id="level">
+        <option value="info">info</option>
+        <option value="warn">warn</option>
+        <option value="error">error</option>
+      </select>
+      <label>Message</label>
+      <input id="message" type="text" value="button clicked" />
+      <button onclick="sendLog()">Send Log</button>
+      <div id="status"></div>
+      <script>
+        async function sendLog() {
+          const level = document.getElementById('level').value;
+          const message = document.getElementById('message').value;
+          const status = document.getElementById('status');
+          status.textContent = 'Sending...';
+          try {
+            const res = await fetch('/log', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ level, message })
+            });
+            status.textContent = res.ok ? 'Sent!' : 'Failed: ' + res.status;
+          } catch (e) {
+            status.textContent = 'Error: ' + e;
+          }
+        }
+      </script>
+    </body>
+    </html>
+    """
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html")
+            self.end_headers()
+            self.wfile.write(PAGE)
+
+        def do_POST(self):
+            if self.path != "/log":
+                self.send_response(404)
+                self.end_headers()
+                return
+            length = int(self.headers.get("Content-Length", 0))
+            body = self.rfile.read(length)
+            try:
+                data = json.loads(body or b"{}")
+            except json.JSONDecodeError:
+                data = {}
+            level = str(data.get("level", "info")).lower()
+            if level not in ("info", "warn", "error"):
+                level = "info"
+            message = str(data.get("message", "")).replace('"', "'") or "button clicked"
+            print(f'level={level} msg="{message}" ts={int(time.time())}', flush=True)
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(b'{"ok": true}')
+
+        def log_message(self, fmt, *args):
+            pass
+
+    if __name__ == "__main__":
+        ThreadingHTTPServer(("0.0.0.0", 8080), Handler).serve_forever()
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: log-sender
+  namespace: demo-stack
+  labels:
+    app: log-sender
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: log-sender
+  template:
+    metadata:
+      labels:
+        app: log-sender
+    spec:
+      containers:
+        - name: log-sender
+          image: python:3.12-alpine
+          command: ["python3", "/app/server.py"]
+          ports:
+            - containerPort: 8080
+              name: http
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+          readinessProbe:
+            tcpSocket:
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          volumeMounts:
+            - name: server
+              mountPath: /app
+      volumes:
+        - name: server
+          configMap:
+            name: log-sender
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: log-sender
+  namespace: demo-stack
+  labels:
+    app: log-sender
+spec:
+  type: NodePort
+  selector:
+    app: log-sender
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+      nodePort: 30500

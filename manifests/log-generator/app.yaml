@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: log-generator
+  namespace: demo-stack
+  labels:
+    app: log-generator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: log-generator
+  template:
+    metadata:
+      labels:
+        app: log-generator
+    spec:
+      containers:
+        - name: log-generator
+          image: busybox:1.36
+          command: ["sh", "-c"]
+          args:
+            - |
+              i=0
+              while true; do
+                i=$((i + 1))
+                r=$((i % 10))
+                if [ "$r" -eq 0 ]; then
+                  echo "level=error msg=\"request failed\" seq=$i"
+                elif [ "$r" -eq 1 ]; then
+                  echo "level=warn msg=\"slow response\" seq=$i"
+                else
+                  echo "level=info msg=\"request handled\" seq=$i"
+                fi
+                sleep 2
+              done
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi

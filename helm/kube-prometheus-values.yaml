@@ -10,8 +10,20 @@ grafana:
     requests:
       cpu: 50m
       memory: 128Mi
+  service:
+    type: NodePort
+    nodePort: 30300
+  additionalDataSources:
+    - name: Loki
+      type: loki
+      uid: loki
+      url: http://loki.loki.svc.cluster.local:3100
+      access: proxy
 
 prometheus:
+  service:
+    type: NodePort
+    nodePort: 30090
   prometheusSpec:
     serviceMonitorSelectorNilUsesHelmValues: false
     podMonitorSelectorNilUsesHelmValues: false

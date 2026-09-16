@@ -1,0 +1,57 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: logs-dashboard
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  logs-dashboard.json: |
+    {
+      "title": "Log Generator - Logs",
+      "timezone": "browser",
+      "refresh": "10s",
+      "schemaVersion": 39,
+      "panels": [
+        {
+          "id": 1,
+          "type": "timeseries",
+          "title": "Log lines by level",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 0 },
+          "targets": [
+            {
+              "datasource": { "type": "loki", "uid": "loki" },
+              "expr": "sum by (level) (count_over_time({namespace=\"demo-stack\", app=\"log-generator\"} | logfmt [$__interval]))",
+              "legendFormat": "{{level}}"
+            }
+          ]
+        },
+        {
+          "id": 2,
+          "type": "stat",
+          "title": "Errors (last 15m)",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 8 },
+          "targets": [
+            {
+              "datasource": { "type": "loki", "uid": "loki" },
+              "expr": "sum(count_over_time({namespace=\"demo-stack\", app=\"log-generator\"} | logfmt | level=\"error\" [15m]))"
+            }
+          ]
+        },
+        {
+          "id": 3,
+          "type": "logs",
+          "title": "Live log stream",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "gridPos": { "h": 12, "w": 24, "x": 0, "y": 16 },
+          "targets": [
+            {
+              "datasource": { "type": "loki", "uid": "loki" },
+              "expr": "{namespace=\"demo-stack\", app=\"log-generator\"}"
+            }
+          ]
+        }
+      ]
+    }
