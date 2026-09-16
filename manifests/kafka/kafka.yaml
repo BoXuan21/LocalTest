@@ -76,6 +76,13 @@ spec:
             - >
               wget -qO /agent/jmx_prometheus_javaagent.jar
               https://repo1.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/0.20.0/jmx_prometheus_javaagent-0.20.0.jar
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 50m
+              memory: 32Mi
           volumeMounts:
             - name: jmx-agent
               mountPath: /agent
