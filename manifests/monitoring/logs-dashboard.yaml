@@ -22,7 +22,7 @@ data:
           "targets": [
             {
               "datasource": { "type": "loki", "uid": "loki" },
-              "expr": "sum by (level) (count_over_time({namespace=\"demo-stack\", app=\"log-generator\"} | logfmt [$__interval]))",
+              "expr": "sum by (level) (count_over_time({namespace=\"demo-stack\", app=~\"log-generator|log-sender\"} | logfmt [$__interval]))",
               "legendFormat": "{{level}}"
             }
           ]
@@ -36,7 +36,7 @@ data:
           "targets": [
             {
               "datasource": { "type": "loki", "uid": "loki" },
-              "expr": "sum(count_over_time({namespace=\"demo-stack\", app=\"log-generator\"} | logfmt | level=\"error\" [15m]))"
+              "expr": "sum(count_over_time({namespace=\"demo-stack\", app=~\"log-generator|log-sender\"} | logfmt | level=\"error\" [15m]))"
             }
           ]
         },
@@ -49,7 +49,24 @@ data:
           "targets": [
             {
               "datasource": { "type": "loki", "uid": "loki" },
-              "expr": "{namespace=\"demo-stack\", app=\"log-generator\"}"
+              "expr": "{namespace=\"demo-stack\", app=~\"log-generator|log-sender\"}"
+            }
+          ]
+        },
+        {
+          "id": 4,
+          "type": "logs",
+          "title": "Log Sender - messages sent",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "gridPos": { "h": 10, "w": 24, "x": 0, "y": 28 },
+          "options": {
+            "showTime": true,
+            "wrapLogMessage": true
+          },
+          "targets": [
+            {
+              "datasource": { "type": "loki", "uid": "loki" },
+              "expr": "{namespace=\"demo-stack\", app=\"log-sender\"}"
             }
           ]
         }
