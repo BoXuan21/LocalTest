@@ -1,0 +1,47 @@
+# manifests/istio/istio-alerts.yaml
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: istio-request-duration-alerts
+  namespace: istio-system
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: istio-request-duration
+      rules:
+        - alert: IstioHighRequestLatencyP99
+          expr: |
+            histogram_quantile(0.99,
+              sum(rate(istio_request_duration_milliseconds_bucket{reporter="destination"}[5m]))
+              by (destination_service_name, destination_workload_namespace, le)
+            ) > 1000
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High p99 request latency for {{ $labels.destination_service_name }}"
+            description: "p99 request duration to {{ $labels.destination_service_name }}.{{ $labels.destination_workload_namespace }} has been above 1000ms for 5 minutes (current: {{ $value }}ms)."
+
+        - alert: IstioHighRequestLatencyP99Critical
+          expr: |
+            histogram_quantile(0.99,
+              sum(rate(istio_request_duration_milliseconds_bucket{reporter="destination"}[5m]))
+              by (destination_service_name, destination_workload_namespace, le)
+            ) > 3000
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Critically high p99 request latency for {{ $labels.destination_service_name }}"
+            description: "p99 request duration to {{ $labels.destination_service_name }}.{{ $labels.destination_workload_namespace }} has been above 3000ms for 5 minutes (current: {{ $value }}ms)."
+
+        - alert: IstioNoRequestsObserved
+          expr: |
+            sum(rate(istio_requests_total{reporter="destination", destination_workload_namespace="demo-stack"}[15m])) == 0
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "No mesh traffic observed in demo-stack"
+            description: "No istio_requests_total samples have been recorded for workloads in demo-stack over the last 15 minutes; sidecar injection or the traffic generator may not be working."
