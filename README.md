@@ -1,14 +1,13 @@
 # k3d Metrics Stack
 
-A local Kubernetes demo environment (via [k3d](https://k3d.io/)) for exercising a metrics/logging/alerting pipeline: Kafka, Loki + Alloy, kube-prometheus-stack (Prometheus + Grafana + Alertmanager), Istio, Kyverno, and a small self-healing Kubernetes operator — all wired up with dashboards and alert rules out of the box.
+A local Kubernetes demo environment (via [k3d](https://k3d.io/)) for exercising a metrics/logging/alerting pipeline: Loki + Alloy, kube-prometheus-stack (Prometheus + Grafana + Alertmanager), Istio, Kyverno, and a small self-healing Kubernetes operator — all wired up with dashboards and alert rules out of the box.
 
 ## Architecture
 
 | Component | Namespace | Purpose |
 |---|---|---|
-| **Kafka** | `kafka` | Single-broker StatefulSet (`kafka-0`) exposed on `localhost:9092` for producing/consuming messages. |
 | **Loki + Alloy** | `loki` | Log aggregation (Loki) and log collection/shipping (Alloy), queried via `localhost:3100`. |
-| **kube-prometheus-stack** | `monitoring` | Prometheus, Grafana (`admin`/`admin`), and Alertmanager, installed via Helm with custom values in [`helm/kube-prometheus-values.yaml`](helm/kube-prometheus-values.yaml). |
+| **kube-prometheus-stack** | `monitoring` | Prometheus, Grafana (`admin`/`admin`), and Alertmanager, installed via Helm with custom values in [`helm/kube-prometheus-values.yaml`](helm/kube-prometheus-values.yaml). Alertmanager routing (e.g. ServiceNow) is optionally layered in via a gitignored `helm/kube-prometheus-values.secrets.yaml` — see [`helm/kube-prometheus-values.secrets.yaml.example`](helm/kube-prometheus-values.secrets.yaml.example). |
 | **Istio** | `istio-system` | Service mesh (`istio-base` + `istiod`), installed via Helm with custom values in [`helm/istiod-values.yaml`](helm/istiod-values.yaml). Sidecar injection is enabled on `demo-stack`, so mesh telemetry (`istio_request_duration_milliseconds`, `istio_requests_total`, etc.) is scraped via the PodMonitor/ServiceMonitor in [`manifests/istio/servicemonitors.yaml`](manifests/istio/servicemonitors.yaml). |
 | **Kyverno** | `kyverno` | Policy engine enforcing cluster policies defined in [`manifests/kyverno/kyverno-policy.yaml`](manifests/kyverno/kyverno-policy.yaml). |
 | **Self-healing operator** | `demo-stack` | A [kopf](https://kopf.readthedocs.io/)-based Python operator that reconciles a custom `AppConfig` CRD and deliberately exits every `SELF_DESTRUCT_SECONDS` (default 180s) to demonstrate self-healing/restart behavior. Exposes Prometheus metrics on `:8080` and a `/healthz` probe on `:8081`. |
@@ -16,7 +15,7 @@ A local Kubernetes demo environment (via [k3d](https://k3d.io/)) for exercising 
 | **sample-web / metrics-storage** | `demo-stack` | Sample Deployment and StatefulSet used as generic workloads for dashboards and Kyverno policy demos. |
 | **traffic-generator** | `demo-stack` | Continuously curls `sample-web` through the mesh so Istio sidecars have real request traffic to report latency/error metrics for. |
 
-Metrics and logs flow into Prometheus/Loki, are visualized via preloaded Grafana dashboards ("Self-Healing Operator", "Kafka", "Log Generator - Logs"), and are backed by recording rules and alert rules for Kafka throughput, operator health, Istio request latency, and anomaly detection.
+Metrics and logs flow into Prometheus/Loki, are visualized via preloaded Grafana dashboards ("Self-Healing Operator", "Log Generator - Logs"), and are backed by recording rules and alert rules for operator health, Istio request latency, and anomaly detection.
 
 ## Prerequisites
 
@@ -38,7 +37,7 @@ This will:
 1. Check/install dependencies.
 2. Build the operator Docker image (`operator-demo:latest`) in the background.
 3. Create (or reuse) a k3d cluster named `metrics-stack` (1 server, 2 agents) per [`scripts/k3d-config.yaml`](scripts/k3d-config.yaml).
-4. Install Kafka, Loki, Alloy, Kyverno, Istio, and kube-prometheus-stack in parallel.
+4. Install Loki, Alloy, Kyverno, Istio, and kube-prometheus-stack in parallel.
 5. Import the operator image into the cluster and apply all remaining manifests (CRD, deployments, dashboards, alert/recording rules, log generator/sender, Istio metrics scraping + traffic generator).
 6. Wait for all workloads to become ready.
 
@@ -49,7 +48,6 @@ This will:
 | Grafana (`admin`/`admin`) | http://localhost:3000 |
 | Prometheus | http://localhost:9090 |
 | Loki API | http://localhost:3100 |
-| Kafka bootstrap | http://localhost:9092 |
 | Log Sender UI | http://localhost:5005 |
 
 ## Usage
@@ -58,22 +56,6 @@ This will:
 
 ```bash
 kubectl -n demo-stack get pods -l app=self-healing-operator -w
-```
-
-**Send a one-off Kafka message** and verify it in Prometheus/Grafana:
-
-```bash
-scripts/send-kafka-message.sh test-topic
-# query in Prometheus/Grafana: kafka_server_messagesinpersec_count
-```
-
-> Note: `send-kafka-message.sh` is referenced by `setup.sh` (which `chmod +x`'s it) but is not currently present in `scripts/`. Use `kafka-message-loop.sh` below in the meantime, or add the script.
-
-**Send Kafka messages on a loop:**
-
-```bash
-scripts/kafka-message-loop.sh test-topic 30   # one message every 30s (default)
-# Ctrl+C to stop, or background it with `&` and `kill $!`
 ```
 
 **Send a log line manually** via the Log Sender UI at http://localhost:5005, or watch `log-generator` produce logs continuously — both are visible in Grafana's "Log Generator - Logs" dashboard.
@@ -119,7 +101,6 @@ Deletes the `metrics-stack` k3d cluster.
 ```
 helm/                       Helm values for kube-prometheus-stack and Istio (istiod)
 manifests/
-  kafka/                    Kafka StatefulSet
   loki/                     Loki + Alloy
   istio/                    Istio namespace, envoy/istiod ServiceMonitors, traffic-generator
   kyverno/                  Kyverno ClusterPolicy
@@ -134,5 +115,4 @@ scripts/
   setup.sh                  Bring up the whole stack
   teardown.sh               Delete the k3d cluster
   k3d-config.yaml           k3d cluster/port config
-  kafka-message-loop.sh     Send Kafka messages on an interval
 ```

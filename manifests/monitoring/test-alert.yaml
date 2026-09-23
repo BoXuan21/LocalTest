@@ -1,0 +1,26 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: test-alert
+  namespace: demo-stack
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: test
+      rules:
+        - alert: TestAlert
+          expr: vector(1)
+          labels:
+            severity: info
+          annotations:
+            summary: "Test alert (always firing)"
+            description: "test alarm working"
+
+        - alert: TestCriticalAlert
+          expr: vector(1)
+          labels:
+            severity: critical
+          annotations:
+            summary: "Test critical alert (always firing)"
+            description: "Test2"
