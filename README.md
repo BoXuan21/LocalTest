@@ -31,17 +31,24 @@ Metrics and logs flow into Prometheus/Loki, are visualized via preloaded Grafana
 ## Getting started
 
 ```bash
-cd scripts
-./setup.sh
+scripts/setup.sh   # works from any directory
 ```
 
 This will:
-1. Check/install dependencies.
-2. Build the operator (`operator-demo:latest`) and simulator (`simulator:latest`) Docker images in the background.
+1. Check/install dependencies (and start Docker Desktop on macOS if it isn't running).
+2. Build the operator (`operator-demo:latest`) and simulator (`simulator:latest`) images in the background.
 3. Create (or reuse) a k3d cluster named `metrics-stack` (1 server, 2 agents) per [`scripts/k3d-config.yaml`](scripts/k3d-config.yaml).
-4. Install Kafka, Loki, Alloy, Kyverno, Istio, and kube-prometheus-stack in parallel.
-5. Import both images into the cluster and apply all remaining manifests (CRD, deployments, dashboards, alert/recording rules, log generator/sender, Istio metrics scraping + traffic generator, Test Simulator).
-6. Wait for all workloads to become ready.
+4. Install Kafka, Loki, Alloy, Kyverno, Istio, and kube-prometheus-stack in parallel (chart versions are pinned at the top of `setup.sh`).
+5. Import the images and apply all remaining manifests once Istio and Kyverno are serving, so demo pods get sidecars and policy checks.
+6. Wait for every workload in parallel, printing pod status and events for anything that doesn't come up.
+
+The script is safe to re-run at any time; a re-run on a healthy cluster takes about 20 seconds. It:
+- skips the image import and restarts unless the operator/simulator code changed;
+- repairs Helm releases left stuck by an interrupted run (`pending-install`/`pending-upgrade`) or a failed first install;
+- recreates the cluster if its port mappings no longer match `k3d-config.yaml`;
+- refuses to create a cluster when a required host port is taken, and names the process using it;
+- retries network operations (chart downloads, image builds, cluster creation);
+- on failure, keeps per-step logs and prints where they are.
 
 ### Exposed ports
 

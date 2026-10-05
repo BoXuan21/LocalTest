@@ -48,10 +48,20 @@ prometheusOperator:
     requests:
       cpu: 50m
       memory: 128Mi
+  # skips the cert-gen/patch jobs, so the release installs in seconds and
+  # PrometheusRules can be applied before the operator pod is even up.
+  # tls must go too: its secret is only ever created by those jobs.
+  admissionWebhooks:
+    enabled: false
+  tls:
+    enabled: false
 
 kubeEtcd:
   enabled: false
 kubeControllerManager:
   enabled: false
 kubeScheduler:
+  enabled: false
+# k3s runs kube-proxy inside the k3s binary, so there's nothing to scrape
+kubeProxy:
   enabled: false
