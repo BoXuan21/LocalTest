@@ -60,6 +60,9 @@ spec:
     - name: metrics
       port: 8080
       targetPort: 8080
+    - name: http-health
+      port: 8081
+      targetPort: 8081
 ---
 apiVersion: demo.example.com/v1
 kind: AppConfig

@@ -55,7 +55,3 @@ kubeControllerManager:
   enabled: false
 kubeScheduler:
   enabled: false
-defaultRules:
-  disabled:
-    Watchdog: true
-    InfoInhibitor: true 

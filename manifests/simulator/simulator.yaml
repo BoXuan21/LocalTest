@@ -1,0 +1,162 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: simulator
+  namespace: demo-stack
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: simulator
+  namespace: demo-stack
+rules:
+  # scale operator / traffic-generator, create + delete sim-* fault deployments
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "create", "delete"]
+  - apiGroups: ["apps"]
+    resources: ["deployments/scale"]
+    verbs: ["get", "patch"]
+  # Kyverno admission tests (always sent with dryRun=All)
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["create"]
+  # poke the operator's reconcile loop
+  - apiGroups: ["demo.example.com"]
+    resources: ["appconfigs"]
+    verbs: ["get", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: simulator
+  namespace: demo-stack
+subjects:
+  - kind: ServiceAccount
+    name: simulator
+    namespace: demo-stack
+roleRef:
+  kind: Role
+  name: simulator
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: simulator
+  namespace: kafka
+rules:
+  - apiGroups: ["apps"]
+    resources: ["statefulsets"]
+    verbs: ["get"]
+  - apiGroups: ["apps"]
+    resources: ["statefulsets/scale"]
+    verbs: ["get", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: simulator
+  namespace: kafka
+subjects:
+  - kind: ServiceAccount
+    name: simulator
+    namespace: demo-stack
+roleRef:
+  kind: Role
+  name: simulator
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: simulator
+  namespace: demo-stack
+  labels:
+    app: simulator
+spec:
+  # scenario state lives in memory, so this must stay at one replica
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: simulator
+  template:
+    metadata:
+      labels:
+        app: simulator
+      annotations:
+        # UI/API/metrics port bypasses the sidecar so browser polling doesn't show up as mesh traffic
+        traffic.sidecar.istio.io/excludeInboundPorts: "8080"
+        # talk to Kafka directly; the broker isn't in the mesh
+        traffic.sidecar.istio.io/excludeOutboundPorts: "9092"
+    spec:
+      serviceAccountName: simulator
+      containers:
+        - name: simulator
+          image: simulator:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          ports:
+            - name: http
+              containerPort: 8080
+            - name: http-target
+              containerPort: 8000
+          resources:
+            requests:
+              cpu: 50m
+              memory: 96Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 20
+---
+# control UI, exposed on localhost:8088 via the k3d port mapping
+apiVersion: v1
+kind: Service
+metadata:
+  name: simulator
+  namespace: demo-stack
+  labels:
+    app: simulator
+spec:
+  type: NodePort
+  selector:
+    app: simulator
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+      nodePort: 30808
+---
+# the mesh-visible backend the simulator generates traffic against
+apiVersion: v1
+kind: Service
+metadata:
+  name: sim-target
+  namespace: demo-stack
+  labels:
+    app: sim-target
+spec:
+  selector:
+    app: simulator
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 8000

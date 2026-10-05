@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Test Simulator</title>
+<style>
+  :root {
+    --bg: #f5f6f8; --panel: #ffffff; --text: #1d2330; --muted: #677085; --border: #dfe3ea;
+    --accent: #3d63dd; --accent-text: #ffffff;
+    --ok: #1f8a4c; --ok-bg: #e3f4ea; --warn: #a86400; --warn-bg: #fdf0d9; --bad: #c93333; --bad-bg: #fbe4e4;
+    --idle-bg: #eef0f4;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #12151b; --panel: #1b1f27; --text: #e4e7ee; --muted: #8d95a7; --border: #2c323e;
+      --accent: #6d8cf0; --accent-text: #0d1220;
+      --ok: #5ccf8b; --ok-bg: #173323; --warn: #f0b04f; --warn-bg: #3a2c12; --bad: #f07272; --bad-bg: #3d1a1c;
+      --idle-bg: #252a35;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  header { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; padding: 14px 24px; background: var(--panel); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 2; }
+  header h1 { font-size: 17px; margin: 0; }
+  header nav { display: flex; gap: 14px; margin-left: auto; align-items: center; flex-wrap: wrap; }
+  header a { color: var(--accent); text-decoration: none; }
+  main { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 20px; padding: 20px 24px; max-width: 1500px; margin: 0 auto; }
+  @media (max-width: 1000px) { main { grid-template-columns: minmax(0, 1fr); padding: 16px; } header { padding: 12px 16px; } }
+  @media (max-width: 520px) { .row { grid-template-columns: 105px minmax(0, 1fr) 52px; } }
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr)); gap: 16px; align-content: start; }
+  .card, .side section { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; }
+  .card h2, .side h2 { font-size: 15px; margin: 0 0 4px; }
+  .desc { color: var(--muted); margin: 0 0 12px; font-size: 13px; overflow-wrap: anywhere; }
+  .card { min-width: 0; }
+  .side { display: flex; flex-direction: column; gap: 16px; }
+  @media (min-width: 1001px) { .side { position: sticky; top: 76px; align-self: start; max-height: calc(100vh - 96px); overflow: auto; } }
+  .row { display: grid; grid-template-columns: 130px 1fr 72px; align-items: center; gap: 10px; margin: 6px 0; }
+  .row label { color: var(--muted); font-size: 13px; }
+  .row output { text-align: right; font-variant-numeric: tabular-nums; }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  input[type=text] { width: 100%; padding: 5px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--text); font: inherit; }
+  .buttons { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 4px; }
+  button { font: inherit; font-size: 13px; padding: 6px 12px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg); color: var(--text); cursor: pointer; }
+  button:hover { border-color: var(--accent); }
+  button.primary { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+  button.danger { color: var(--bad); }
+  button.on { background: var(--bad-bg); border-color: var(--bad); color: var(--bad); }
+  button:disabled { opacity: .5; cursor: wait; }
+  .sub { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 14px 0 4px; }
+  .stats { display: flex; gap: 18px; flex-wrap: wrap; font-size: 13px; color: var(--muted); margin-top: 10px; }
+  .stats b { color: var(--text); font-variant-numeric: tabular-nums; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--border); }
+  .chip { font-size: 12px; padding: 2px 9px; border-radius: 999px; background: var(--idle-bg); color: var(--muted); white-space: nowrap; }
+  .chip.pending { background: var(--warn-bg); color: var(--warn); }
+  .chip.firing { background: var(--bad-bg); color: var(--bad); font-weight: 600; }
+  .chip.missing { text-decoration: line-through; }
+  .note { font-size: 12px; color: var(--muted); margin-top: 8px; }
+  .result { margin-top: 10px; padding: 8px 10px; border-radius: 6px; font-size: 13px; display: none; word-break: break-word; }
+  .result.ok { display: block; background: var(--ok-bg); color: var(--ok); }
+  .result.bad { display: block; background: var(--bad-bg); color: var(--bad); }
+  .alert { padding: 8px 0; border-bottom: 1px solid var(--border); }
+  .alert:last-child { border-bottom: 0; }
+  .alert .name { font-weight: 600; display: flex; justify-content: space-between; gap: 8px; }
+  .alert .meta { font-size: 12px; color: var(--muted); }
+  .state { font-size: 11px; text-transform: uppercase; font-weight: 600; }
+  .state.firing { color: var(--bad); } .state.pending { color: var(--warn); }
+  .empty { color: var(--muted); font-size: 13px; }
+  .log { font-size: 12px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .log div { padding: 3px 0; border-bottom: 1px solid var(--border); }
+  .log .t { color: var(--muted); margin-right: 6px; }
+  .log .bad { color: var(--bad); }
+  .pill { font-size: 12px; padding: 1px 8px; border-radius: 999px; }
+  .pill.ok { background: var(--ok-bg); color: var(--ok); } .pill.bad { background: var(--bad-bg); color: var(--bad); }
+  #toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--bad); color: #fff; padding: 8px 14px; border-radius: 8px; display: none; max-width: 90vw; z-index: 5; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Test Simulator</h1>
+  <span class="desc" style="margin:0">Trigger failure scenarios and watch the alerts react.</span>
+  <nav>
+    <a href="http://localhost:3000/d/test-simulator" target="_blank">Grafana dashboard</a>
+    <a href="http://localhost:9090/alerts" target="_blank">Prometheus alerts</a>
+    <button class="primary" onclick="act('/api/reset', {}, this)">Reset everything</button>
+  </nav>
+</header>
+
+<main>
+<div class="cards">
+
+  <!-- Mesh traffic -->
+  <section class="card">
+    <h2>Mesh traffic &rarr; sim-target</h2>
+    <p class="desc">Requests flow through the Istio sidecars, so <code>istio_requests_total</code> and request-duration histograms reflect exactly what you set here.</p>
+    <div class="row"><label>Requests / sec</label><input type="range" data-group="traffic" data-key="rps" min="0" max="100" step="1"><output></output></div>
+    <div class="row"><label>Base latency (ms)</label><input type="range" data-group="traffic" data-key="latency_ms" min="0" max="5000" step="10"><output></output></div>
+    <div class="row"><label>Slow requests (%)</label><input type="range" data-group="traffic" data-key="slow_pct" min="0" max="100" step="1"><output></output></div>
+    <div class="row"><label>Slow latency (ms)</label><input type="range" data-group="traffic" data-key="slow_ms" min="0" max="10000" step="100"><output></output></div>
+    <div class="row"><label>Errors, HTTP 500 (%)</label><input type="range" data-group="traffic" data-key="error_pct" min="0" max="100" step="1"><output></output></div>
+    <div class="sub">Scenarios</div>
+    <div class="buttons">
+      <button onclick="preset('normal', this)">Normal</button>
+      <button onclick="preset('p99warn', this)">p99 &gt; 1s</button>
+      <button onclick="preset('p99crit', this)">p99 &gt; 3s</button>
+      <button onclick="preset('errors', this)">Error spike</button>
+      <button onclick="preset('surge', this)">Traffic surge</button>
+      <button class="danger" onclick="preset('silence', this)">Stop all traffic</button>
+    </div>
+    <div class="stats" id="traffic-stats"></div>
+    <div class="note">Latency alerts use a 5m rate window plus <code>for: 5m</code>, so expect them to fire after ~6&ndash;10 minutes. "Stop all traffic" also scales <code>traffic-generator</code> to 0.</div>
+    <div class="chips" data-alerts="IstioHighRequestLatencyP99 IstioHighRequestLatencyP99Critical IstioHighErrorRate IstioHighRequestRate IstioNoRequestsObserved"></div>
+  </section>
+
+  <!-- Kafka -->
+  <section class="card">
+    <h2>Kafka</h2>
+    <p class="desc">Produces JSON messages to the broker; JMX metrics show up as <code>kafka_server_brokertopicmetrics_count</code>.</p>
+    <div class="row"><label>Topic</label><input type="text" id="kafka-topic" spellcheck="false"><button onclick="setTopic(this)">Set</button></div>
+    <div class="row"><label>Messages / sec</label><input type="range" data-group="kafka" data-key="rate" min="0" max="200" step="1"><output></output></div>
+    <div class="buttons">
+      <button onclick="act('/api/kafka/burst', {count: 5000}, this)">Burst 5,000 msgs</button>
+      <button onclick="act('/api/kafka', {rate: 0}, this)">Stop producing</button>
+      <button onclick="act('/api/kafka', {rate: 80}, this)">Rate spike (80/s)</button>
+    </div>
+    <div class="sub">Broker</div>
+    <div class="buttons">
+      <button class="danger" onclick="act('/api/scale', {target: 'kafka', replicas: 0}, this)">Stop broker</button>
+      <button onclick="act('/api/scale', {target: 'kafka', replicas: 1}, this)">Start broker</button>
+    </div>
+    <div class="stats" id="kafka-stats"></div>
+    <div class="note">"No messages" uses a 15m window + <code>for: 5m</code>: ~20 minutes after you stop producing.</div>
+    <div class="chips" data-alerts="KafkaMessageRateSpike KafkaNoMessagesReceived KafkaMetricsTargetDown"></div>
+  </section>
+
+  <!-- Operator -->
+  <section class="card">
+    <h2>Self-healing operator</h2>
+    <p class="desc">Crash the container so Kubernetes restarts it, take the operator away entirely, or poke its reconcile loop.</p>
+    <div class="buttons">
+      <button class="danger" onclick="act('/api/operator/crash', {}, this)">Crash container</button>
+      <button onclick="act('/api/operator/reconcile', {}, this)">Trigger reconcile</button>
+    </div>
+    <div class="buttons">
+      <button class="danger" onclick="act('/api/scale', {target: 'operator', replicas: 0}, this)">Scale to 0</button>
+      <button onclick="act('/api/scale', {target: 'operator', replicas: 1}, this)">Scale to 1</button>
+    </div>
+    <div class="stats" id="operator-stats"></div>
+    <div class="chips" data-alerts="OperatorRestarted OperatorTargetDown OperatorNotReconciling"></div>
+  </section>
+
+  <!-- Workload faults -->
+  <section class="card">
+    <h2>Workload faults</h2>
+    <p class="desc">Each toggle deploys a throwaway <code>sim-*</code> Deployment in demo-stack that misbehaves in one specific way.</p>
+    <div class="buttons" id="fault-buttons">
+      <button data-fault="crashloop">CrashLoopBackOff</button>
+      <button data-fault="pending">Unschedulable pod</button>
+      <button data-fault="memory-pressure">Memory near limit</button>
+      <button data-fault="oom">OOM kill</button>
+      <button data-fault="cpu-burn">CPU burn</button>
+    </div>
+    <div class="note">Red = running. The kube-prometheus default rules (CrashLooping, NotReady, Throttling) use <code>for: 15m</code>; the custom container rules fire within 1&ndash;3 minutes.</div>
+    <div class="chips" data-alerts="ContainerOOMKilled ContainerMemoryNearLimit ContainerCpuNearLimit KubePodCrashLooping KubePodNotReady KubeDeploymentReplicasMismatch CPUThrottlingHigh"></div>
+  </section>
+
+  <!-- Kyverno -->
+  <section class="card">
+    <h2>Kyverno admission</h2>
+    <p class="desc">Submits a pod to demo-stack as a <b>dry run</b>, so it passes through admission (including Kyverno) without being created.</p>
+    <div class="buttons">
+      <button onclick="kyverno('no-resources', this)">Pod without resources</button>
+      <button onclick="kyverno('no-label', this)">Pod without app label</button>
+      <button onclick="kyverno('compliant', this)">Compliant pod</button>
+    </div>
+    <div class="result" id="kyverno-result"></div>
+  </section>
+
+  <!-- Logs -->
+  <section class="card">
+    <h2>Logs &rarr; Loki</h2>
+    <p class="desc">Emits logfmt lines from the simulator pod, which Alloy ships to Loki (<code>{app="simulator"}</code>).</p>
+    <div class="row"><label>Lines / sec</label><input type="range" data-group="logs" data-key="rate" min="0" max="50" step="1"><output></output></div>
+    <div class="row"><label>Error share (%)</label><input type="range" data-group="logs" data-key="error_pct" min="0" max="100" step="1"><output></output></div>
+    <div class="buttons">
+      <button onclick="act('/api/logs/burst', {level: 'error', count: 200}, this)">Burst 200 errors</button>
+      <button onclick="act('/api/logs/burst', {level: 'warn', count: 200}, this)">Burst 200 warnings</button>
+      <button onclick="act('/api/logs', {rate: 0}, this)">Stop</button>
+    </div>
+    <div class="note">Shown in the Grafana "Log Generator - Logs" dashboard.</div>
+  </section>
+
+</div>
+
+<aside class="side">
+  <section>
+    <h2>Active alerts</h2>
+    <div id="alerts"><div class="empty">Loading&hellip;</div></div>
+  </section>
+  <section>
+    <h2>Activity</h2>
+    <div class="log" id="activity"></div>
+  </section>
+</aside>
+</main>
+<div id="toast"></div>
+
+<script>
+const PRESETS = {
+  normal:  { traffic: { rps: 5,  latency_ms: 20, slow_pct: 0, slow_ms: 0,    error_pct: 0 },  tg: 1 },
+  p99warn: { traffic: { rps: 10, latency_ms: 50, slow_pct: 5, slow_ms: 1500, error_pct: 0 } },
+  p99crit: { traffic: { rps: 10, latency_ms: 50, slow_pct: 5, slow_ms: 4000, error_pct: 0 } },
+  errors:  { traffic: { rps: 10, latency_ms: 20, slow_pct: 0, slow_ms: 0,    error_pct: 25 } },
+  surge:   { traffic: { rps: 80, latency_ms: 20, slow_pct: 0, slow_ms: 0,    error_pct: 0 } },
+  silence: { traffic: { rps: 0 }, tg: 0 },
+};
+let state = null, rules = [];
+
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.style.display = 'block';
+  clearTimeout(toast.t); toast.t = setTimeout(() => el.style.display = 'none', 5000);
+}
+
+async function post(path, body) {
+  const res = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || res.statusText);
+  return data;
+}
+
+async function act(path, body, btn) {
+  if (btn) btn.disabled = true;
+  try { const data = await post(path, body); await refreshState(); return data; }
+  catch (e) { toast(e.message); }
+  finally { if (btn) btn.disabled = false; }
+}
+
+async function preset(name, btn) {
+  const p = PRESETS[name];
+  btn.disabled = true;
+  try {
+    await post('/api/traffic', p.traffic);
+    if (p.tg !== undefined) await post('/api/scale', { target: 'traffic-generator', replicas: p.tg });
+  } catch (e) { toast(e.message); }
+  btn.disabled = false;
+  refreshState();
+}
+
+async function setTopic(btn) {
+  await act('/api/kafka', { topic: document.getElementById('kafka-topic').value }, btn);
+}
+
+async function kyverno(kase, btn) {
+  const el = document.getElementById('kyverno-result');
+  const data = await act('/api/kyverno', { case: kase }, btn);
+  if (!data) return;
+  el.className = 'result ' + (data.allowed ? 'ok' : 'bad');
+  el.textContent = (data.allowed ? 'Allowed: ' : 'Denied: ') + data.message;
+}
+
+// sliders: live label while dragging, POST on release
+document.querySelectorAll('input[type=range]').forEach(input => {
+  const out = input.nextElementSibling;
+  input.addEventListener('input', () => out.textContent = input.value);
+  input.addEventListener('change', () => act('/api/' + input.dataset.group, { [input.dataset.key]: Number(input.value) }));
+});
+
+document.querySelectorAll('[data-fault]').forEach(btn => {
+  btn.addEventListener('click', () => act('/api/fault', { fault: btn.dataset.fault, enabled: !btn.classList.contains('on') }, btn));
+});
+
+function fmtAgo(iso) {
+  const s = Math.max(0, Math.round((Date.now() - new Date(iso)) / 1000));
+  return s < 60 ? s + 's' : s < 3600 ? Math.floor(s / 60) + 'm ' + (s % 60) + 's' : Math.floor(s / 3600) + 'h ' + Math.floor(s % 3600 / 60) + 'm';
+}
+function fmtDur(s) { return s >= 60 ? (s / 60) + 'm' : s + 's'; }
+function workload(w) {
+  if (!w || w.error) return '<span class="pill bad">' + (w ? w.error : 'unknown') + '</span>';
+  const cls = w.replicas > 0 && w.ready >= w.replicas ? 'ok' : 'bad';
+  return `<span class="pill ${cls}">${w.ready || 0}/${w.replicas} ready</span>`;
+}
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+function renderState() {
+  const s = state;
+  document.querySelectorAll('input[type=range]').forEach(input => {
+    if (document.activeElement === input) return;
+    const v = s.settings[input.dataset.group][input.dataset.key];
+    input.value = v; input.nextElementSibling.textContent = Math.round(v);
+  });
+  const topic = document.getElementById('kafka-topic');
+  if (document.activeElement !== topic) topic.value = s.settings.kafka.topic;
+
+  const t = s.traffic_stats;
+  document.getElementById('traffic-stats').innerHTML =
+    `<span>Last 10s: <b>${t.rps}</b> req/s</span><span>p50 <b>${t.p50_ms ?? '–'}</b> ms</span>` +
+    `<span>p99 <b>${t.p99_ms ?? '–'}</b> ms</span><span>errors <b>${t.error_pct}%</b></span>` +
+    `<span>in flight <b>${t.inflight}</b></span><span>traffic-generator ${workload(s.workloads['traffic-generator'])}</span>`;
+
+  const k = s.kafka;
+  document.getElementById('kafka-stats').innerHTML =
+    `<span>Broker ${workload(s.workloads.kafka)}</span><span>produced <b>${k.produced}</b></span>` +
+    `<span>errors <b>${k.errors}</b></span>` + (k.last_error && k.errors ? `<span title="${esc(k.last_error)}">last error: ${esc(k.last_error.slice(0, 60))}</span>` : '');
+
+  document.getElementById('operator-stats').innerHTML = `<span>Operator ${workload(s.workloads.operator)}</span>`;
+
+  document.querySelectorAll('[data-fault]').forEach(btn => {
+    const f = s.faults[btn.dataset.fault];
+    btn.classList.toggle('on', !!(f && f.active));
+  });
+
+  document.getElementById('activity').innerHTML = s.activity.map(a =>
+    `<div class="${a.ok ? '' : 'bad'}"><span class="t">${new Date(a.ts * 1000).toLocaleTimeString()}</span>${esc(a.msg)}</div>`
+  ).join('') || '<div class="empty">Nothing yet.</div>';
+}
+
+function renderAlerts() {
+  const byName = Object.fromEntries(rules.map(r => [r.name, r]));
+  document.querySelectorAll('[data-alerts]').forEach(box => {
+    box.innerHTML = box.dataset.alerts.split(' ').map(name => {
+      const r = byName[name];
+      if (!r) return `<span class="chip missing" title="rule not loaded in Prometheus">${name}</span>`;
+      const extra = r.state === 'inactive' ? ` · for ${fmtDur(r.for_s)}` : ` · ${r.state} ${fmtAgo(r.active_at)}`;
+      return `<span class="chip ${r.state}" title="${esc(r.summary)}">${name}${extra}</span>`;
+    }).join('');
+  });
+
+  const active = rules.filter(r => r.state !== 'inactive')
+    .sort((a, b) => (a.state === 'firing' ? 0 : 1) - (b.state === 'firing' ? 0 : 1) || a.name.localeCompare(b.name));
+  document.getElementById('alerts').innerHTML = active.length ? active.map(r => {
+    const inst = r.instances.map(i => Object.entries(i).map(([k, v]) => `${k}=${v}`).join(', ')).filter(Boolean)[0] || '';
+    return `<div class="alert"><div class="name"><span>${r.name}</span><span class="state ${r.state}">${r.state}</span></div>` +
+      `<div class="meta">${r.severity ? r.severity + ' · ' : ''}active ${fmtAgo(r.active_at)} · for ${fmtDur(r.for_s)}${r.count > 1 ? ' · ' + r.count + ' instances' : ''}</div>` +
+      (inst ? `<div class="meta">${esc(inst)}</div>` : '') + `</div>`;
+  }).join('') : `<div class="empty">No pending or firing alerts (${rules.length} rules loaded).</div>`;
+}
+
+async function refreshState() {
+  try { state = await (await fetch('/api/state')).json(); renderState(); } catch (e) { /* retry on next tick */ }
+}
+async function refreshAlerts() {
+  try {
+    const res = await fetch('/api/alerts'); const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    rules = data.rules; renderAlerts();
+  } catch (e) { document.getElementById('alerts').innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
+}
+
+refreshState(); refreshAlerts();
+setInterval(refreshState, 2000);
+setInterval(refreshAlerts, 5000);
+</script>
+</body>
+</html>

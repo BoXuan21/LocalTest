@@ -1,0 +1,39 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: kafka-message-flow-alerts
+  namespace: kafka
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: kafka-message-flow
+      rules:
+        # absent() covers the broker being scaled to 0: its target disappears
+        # instead of reporting up == 0.
+        - alert: KafkaMetricsTargetDown
+          expr: up{job="kafka"} == 0 or absent(up{job="kafka"})
+          for: 2m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Kafka JMX metrics endpoint is down"
+            description: "Prometheus hasn't been able to scrape the Kafka broker for 2 minutes."
+
+        - alert: KafkaNoMessagesReceived
+          expr: sum by (topic) (increase(kafka_server_brokertopicmetrics_count{name="MessagesInPerSec", topic!=""}[15m])) == 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "No messages received on topic {{ $labels.topic }}"
+            description: "Topic {{ $labels.topic }} hasn't received a single message in the last 15 minutes."
+
+        - alert: KafkaMessageRateSpike
+          expr: sum by (topic) (rate(kafka_server_brokertopicmetrics_count{name="MessagesInPerSec", topic!=""}[1m])) > 50
+          for: 1m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Message rate spike on topic {{ $labels.topic }}"
+            description: "Topic {{ $labels.topic }} is receiving {{ $value | humanize }} msg/s (threshold 50 msg/s)."

@@ -9,14 +9,15 @@ spec:
   groups:
     - name: self-healing-operator
       rules:
+        # absent() covers the operator being scaled to 0 (its target disappears).
         - alert: OperatorTargetDown
-          expr: up{job=~".*operator.*"} == 0
+          expr: up{job=~".*operator.*"} == 0 or absent(up{job="operator-metrics"})
           for: 1m
           labels:
             severity: warning
           annotations:
             summary: "self-healing-operator target is down"
-            description: "Prometheus has not been able to scrape {{ $labels.instance }} for over 1 minute."
+            description: "Prometheus has not been able to scrape the self-healing-operator for over 1 minute (target down or scaled to 0)."
         - alert: OperatorRestarted
           expr: increase(kube_pod_container_status_restarts_total{pod=~"self-healing-operator.*"}[5m]) > 0
           labels:
@@ -32,4 +33,3 @@ spec:
           annotations:
             summary: "self-healing-operator has not reconciled anything recently"
             description: "operator_reconcile_total has not increased in the last 15 minutes."
-        

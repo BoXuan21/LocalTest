@@ -1,0 +1,47 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: workload-resource-alerts
+  namespace: demo-stack
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: workload-resources
+      rules:
+        - alert: ContainerMemoryNearLimit
+          expr: |
+            sum by (namespace, pod, container) (container_memory_working_set_bytes{namespace="demo-stack", container!="", container!="POD"})
+              /
+            sum by (namespace, pod, container) (kube_pod_container_resource_limits{namespace="demo-stack", resource="memory"})
+              > 0.8
+          for: 1m
+          labels:
+            severity: warning
+          annotations:
+            summary: "{{ $labels.pod }}/{{ $labels.container }} is near its memory limit"
+            description: "Working set is at {{ $value | humanizePercentage }} of the container's memory limit."
+
+        - alert: ContainerCpuNearLimit
+          expr: |
+            sum by (namespace, pod, container) (rate(container_cpu_usage_seconds_total{namespace="demo-stack", container!="", container!="POD"}[2m]))
+              /
+            sum by (namespace, pod, container) (kube_pod_container_resource_limits{namespace="demo-stack", resource="cpu"})
+              > 0.9
+          for: 2m
+          labels:
+            severity: warning
+          annotations:
+            summary: "{{ $labels.pod }}/{{ $labels.container }} is pegged at its CPU limit"
+            description: "CPU usage is at {{ $value | humanizePercentage }} of the container's CPU limit."
+
+        - alert: ContainerOOMKilled
+          expr: |
+            (increase(kube_pod_container_status_restarts_total{namespace="demo-stack"}[10m]) >= 1)
+              and ignoring (reason)
+            min_over_time(kube_pod_container_status_last_terminated_reason{namespace="demo-stack", reason="OOMKilled"}[10m]) == 1
+          labels:
+            severity: warning
+          annotations:
+            summary: "{{ $labels.pod }}/{{ $labels.container }} was OOMKilled"
+            description: "The container was killed for exceeding its memory limit within the last 10 minutes."

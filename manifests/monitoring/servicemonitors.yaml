@@ -37,3 +37,42 @@ spec:
     - port: http
       path: /metrics
       interval: 30s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: kafka-metrics
+  namespace: kafka
+  labels:
+    release: kube-prometheus-stack
+spec:
+  selector:
+    matchLabels:
+      app: kafka
+  namespaceSelector:
+    matchNames:
+      - kafka
+  endpoints:
+    - port: http-metrics
+      path: /metrics
+      interval: 15s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: simulator
+  namespace: demo-stack
+  labels:
+    app: simulator
+    release: kube-prometheus-stack
+spec:
+  selector:
+    matchLabels:
+      app: simulator
+  namespaceSelector:
+    matchNames:
+      - demo-stack
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s

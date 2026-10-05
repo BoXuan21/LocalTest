@@ -1,0 +1,24 @@
+apiVersion: k3d.io/v1alpha5
+kind: Simple
+metadata:
+  name: metrics-stack
+servers: 1
+agents: 2
+ports:
+  - port: 3000:30300   # Grafana
+    nodeFilters: [server:0]
+  - port: 9090:30090   # Prometheus
+    nodeFilters: [server:0]
+  - port: 3100:30100   # Loki
+    nodeFilters: [server:0]
+  - port: 5005:30500   # Log Sender UI
+    nodeFilters: [server:0]
+  - port: 9092:30094   # Kafka (EXTERNAL listener)
+    nodeFilters: [server:0]
+  - port: 8088:30808   # Test Simulator UI
+    nodeFilters: [server:0]
+options:
+  k3s:
+    extraArgs:
+      - arg: --disable=traefik   # Istio handles ingress/mesh; traefik isn't needed
+        nodeFilters: [server:*]

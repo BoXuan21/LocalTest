@@ -50,6 +50,14 @@ class HealthHandler(BaseHTTPRequestHandler):
             self.send_response(200 if _ready else 503)
             self.end_headers()
             self.wfile.write(b"ok" if _ready else b"starting")
+        elif self.path == "/crash":
+            # test hook used by the simulator to force a container restart
+            self.send_response(202)
+            self.end_headers()
+            self.wfile.write(b"crashing")
+            self.wfile.flush()
+            logger.warning("Crash requested via /crash - exiting so Kubernetes restarts the container")
+            threading.Timer(0.5, os._exit, args=(1,)).start()
         else:
             self.send_response(404)
             self.end_headers()
